@@ -1,0 +1,63 @@
+{
+  "name": "@gibme/ssh",
+  "version": "1.0.0",
+  "description": "A simple SSH helper/wrapper",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "files": [
+    "dist/*"
+  ],
+  "license": "MIT",
+  "scripts": {
+    "build": "yarn build:typescript",
+    "build:docs": "./node_modules/.bin/typedoc",
+    "build:typescript": "./node_modules/.bin/tsc",
+    "test": "yarn test:style && yarn test:typecheck && yarn test:mocha",
+    "test:typecheck": "./node_modules/.bin/tsc --noEmit",
+    "test:style": "yarn style",
+    "test:mocha": "./node_modules/.bin/mocha --exit --timeout 30000 --require ts-node/register test/test.ts",
+    "style": "./node_modules/.bin/eslint src/**/*.ts test/**/*.ts",
+    "fix-style": "./node_modules/.bin/eslint --fix src/**/*.ts test/**/*.ts",
+    "fix:style": "yarn fix-style",
+    "prepublishOnly": "yarn build"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/gibme-npm/ssh.git"
+  },
+  "bugs": {
+    "url": "https://github.com/gibme-npm/ssh/issues"
+  },
+  "homepage": "https://gibme-npm.github.io/ssh/",
+  "engines": {
+    "node": ">=16"
+  },
+  "engineStrict": true,
+  "author": {
+    "name": "Brandon Lehmann",
+    "email": "brandonlehmann@gmail.com"
+  },
+  "devDependencies": {
+    "@types/mocha": "^10.0.6",
+    "@types/node": "^20.11.7",
+    "@typescript-eslint/eslint-plugin": "^6.19.1",
+    "@typescript-eslint/parser": "^6.19.1",
+    "dotenv": "^16.4.5",
+    "eslint": "^8.56.0",
+    "eslint-config-standard": "^17.1.0",
+    "eslint-plugin-import": "^2.29.1",
+    "eslint-plugin-n": "^16.6.2",
+    "eslint-plugin-node": "^11.1.0",
+    "eslint-plugin-promise": "^6.1.1",
+    "mocha": "^10.2.0",
+    "ts-node": "^10.9.2",
+    "typedoc": "^0.25.7",
+    "typescript": "^5.3.3"
+  },
+  "dependencies": {
+    "@gibme/bytepack": "^1.0.6",
+    "@gibme/timer": "^1.0.6",
+    "@types/ssh2": "^1.15.0",
+    "ssh2": "^1.15.0"
+  }
+}
