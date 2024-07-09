@@ -24,6 +24,8 @@ import { EventEmitter } from 'events';
 import Timer from '@gibme/timer';
 import { createHash } from 'crypto';
 
+export { ConnectConfig };
+
 /** @ignore */
 const hash = (obj: any) => createHash('sha256')
     .update(JSON.stringify(obj))
