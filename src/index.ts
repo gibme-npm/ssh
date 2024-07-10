@@ -218,6 +218,8 @@ export default class SSH extends EventEmitter {
      * Connects to the remote system
      */
     public async connect (): Promise<void> {
+        if (this.connected) return;
+
         return new Promise((resolve, reject) => {
             function handleError (error: Error) {
                 return reject(error);
@@ -238,6 +240,8 @@ export default class SSH extends EventEmitter {
      * Destroy the underlying SSH connection
      */
     public async destroy (): Promise<void> {
+        if (!this.connected) return;
+
         this.client.destroy();
     }
 
@@ -245,6 +249,8 @@ export default class SSH extends EventEmitter {
      * Disconnects the underlying SSH connection
      */
     public async end (): Promise<void> {
+        if (!this.connected) return;
+
         this.client.end();
     }
 }
