@@ -18,22 +18,15 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-import { Client, ClientChannel, ConnectConfig } from 'ssh2';
+import { Client, ConnectConfig } from 'ssh2';
 import { Reader } from '@gibme/bytepack';
 import { EventEmitter } from 'events';
 import Timer from '@gibme/timer';
-import { createHash } from 'crypto';
 
 export { ConnectConfig };
 
-/** @ignore */
-const hash = (obj: any) => createHash('sha256')
-    .update(JSON.stringify(obj))
-    .digest('hex');
-
 export default class SSH extends EventEmitter {
     private readonly client = new Client();
-    private readonly streams = new Map<string, ClientChannel>();
 
     /**
      * Creates a new instance of the class
@@ -97,6 +90,10 @@ export default class SSH extends EventEmitter {
     public on(event: 'greeting', listener: (greeting: string) => void): this;
 
     public on(event: 'stream', listener: (reader: Buffer) => void): this;
+
+    public on(event: 'stream_cancelled', listener: () => void): this;
+
+    public on(event: 'stream_complete', listener: () => void): this;
 
     public on (event: any, listener: (...args: any[]) => void): this {
         return super.on(event, listener);
@@ -166,7 +163,7 @@ export default class SSH extends EventEmitter {
                 let delimiter = reader.unreadBuffer.indexOf(
                     options.separator || '\r\n', 0, options.encoding);
 
-                while (delimiter >= 0) {
+                while (delimiter >= 0 && !timer.destroyed) {
                     this.emit('stream', reader.bytes(delimiter));
 
                     reader.skip(options.separator?.length);
@@ -185,30 +182,43 @@ export default class SSH extends EventEmitter {
                     return reject(error);
                 }
 
-                const id = hash({ command, ...options });
+                const cleanup = () => {
+                    timer.destroy();
+
+                    stream.destroy();
+                };
 
                 stream.on('close', async () => {
-                    while (reader.unreadBytes > 0) {
-                        await sleep(options.loopInterval || 10); // wait for the reader to clear
+                    /**
+                     * When the stream closes, and we haven't been cancelled
+                     * then we need to wait a moment for the reader to clear
+                     */
+                    while (reader.unreadBytes > 0 && !timer.destroyed) {
+                        await sleep(options.loopInterval || 10);
                     }
 
-                    timer.destroy();
+                    /**
+                     * If we haven't been cancelled, then our stream completed
+                     */
+                    if (!timer.destroyed) {
+                        this.emit('stream_complete');
+                    }
+
+                    cleanup();
                 });
 
                 stream.pipe(reader);
 
-                this.streams.set(id, stream);
-
                 return resolve(async () => {
-                    while (reader.unreadBytes > 0) {
-                        await sleep(options.loopInterval || 10); // wait for the reader to clear
+                    /**
+                     * If we call cancel AFTER we've already completed,
+                     * then we don't want to accidentally say we were cancelled
+                     */
+                    if (!timer.destroyed) {
+                        this.emit('stream_cancelled');
                     }
 
-                    timer.destroy();
-
-                    this.streams.delete(id);
-
-                    stream.destroy();
+                    cleanup();
                 });
             });
         });
@@ -240,8 +250,6 @@ export default class SSH extends EventEmitter {
      * Destroy the underlying SSH connection
      */
     public async destroy (): Promise<void> {
-        if (!this.connected) return;
-
         this.client.destroy();
     }
 
@@ -249,8 +257,6 @@ export default class SSH extends EventEmitter {
      * Disconnects the underlying SSH connection
      */
     public async end (): Promise<void> {
-        if (!this.connected) return;
-
         this.client.end();
     }
 }
