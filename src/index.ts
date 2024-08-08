@@ -22,8 +22,9 @@ import { Client, ConnectConfig } from 'ssh2';
 import { Reader } from '@gibme/bytepack';
 import { EventEmitter } from 'events';
 import Timer from '@gibme/timer';
+import AbortController, { AbortSignal } from 'abort-controller';
 
-export { ConnectConfig };
+export { ConnectConfig, AbortController, AbortSignal };
 
 export default class SSH extends EventEmitter {
     private readonly client = new Client();
@@ -139,8 +140,9 @@ export default class SSH extends EventEmitter {
             separator: string;
             encoding: BufferEncoding;
             loopInterval: number
+            signal: AbortSignal
         }> = { separator: '\r\n', encoding: 'utf8', loopInterval: 10 }
-    ): Promise<() => void> {
+    ): Promise<void> {
         options.separator ??= '\r\n';
         options.encoding ??= 'utf8';
         options.loopInterval ??= 10;
@@ -209,17 +211,21 @@ export default class SSH extends EventEmitter {
 
                 stream.pipe(reader);
 
-                return resolve(async () => {
-                    /**
-                     * If we call cancel AFTER we've already completed,
-                     * then we don't want to accidentally say we were cancelled
-                     */
-                    if (!timer.destroyed) {
-                        this.emit('stream_cancelled');
-                    }
+                if (options.signal) {
+                    options.signal.addEventListener('abort', async () => {
+                        /**
+                         * If we call abort AFTER we've already completed,
+                         * then we don't want to accidentally say we were cancelled
+                         */
+                        if (!timer.destroyed) {
+                            this.emit('stream_cancelled');
+                        }
 
-                    cleanup();
-                });
+                        cleanup();
+                    });
+                }
+
+                return resolve();
             });
         });
     }

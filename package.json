@@ -1,6 +1,6 @@
 {
   "name": "@gibme/ssh",
-  "version": "1.0.3",
+  "version": "2.0.0",
   "description": "A simple SSH helper/wrapper",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -58,6 +58,7 @@
     "@gibme/bytepack": "^1.0.6",
     "@gibme/timer": "^1.0.6",
     "@types/ssh2": "^1.15.0",
+    "abort-controller": "^3.0.0",
     "ssh2": "^1.15.0"
   }
 }

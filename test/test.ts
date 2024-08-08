@@ -19,7 +19,7 @@
 // SOFTWARE.
 
 import { describe, it } from 'mocha';
-import SSH from '../src/index';
+import SSH, { AbortController } from '../src/index';
 import { config } from 'dotenv';
 import assert from 'assert';
 
@@ -51,7 +51,7 @@ describe('Unit Tests', async () => {
     it('Stream()', async function () {
         if (!client.connected) return this.skip();
 
-        const cancel = await client.stream('/ping 1.1.1.1');
+        const controller = new AbortController();
 
         let ok = false;
 
@@ -60,17 +60,25 @@ describe('Unit Tests', async () => {
 
             ok = true;
 
-            cancel();
+            controller.abort();
         });
 
-        setTimeout(() => {
-            assert.ok(ok);
-        }, 5000);
+        await client.stream('/ping 1.1.1.1', { signal: controller.signal });
+
+        return new Promise((resolve, reject) => {
+            controller.signal.addEventListener('abort', () => {
+                return resolve();
+            });
+
+            setTimeout(() => {
+                if (ok) return resolve();
+
+                return reject(new Error('Could not stream properly'));
+            }, 2000);
+        });
     });
 
     it('Destroy()', async function () {
-        if (!client.connected) return this.skip();
-
         await client.destroy();
     });
 });
