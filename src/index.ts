@@ -1,4 +1,4 @@
-// Copyright (c) 2024, Brandon Lehmann <brandonlehmann@gmail.com>
+// Copyright (c) 2024-2025, Brandon Lehmann <brandonlehmann@gmail.com>
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -21,10 +21,9 @@
 import { Client, ConnectConfig } from 'ssh2';
 import { Reader } from '@gibme/bytepack';
 import { EventEmitter } from 'events';
-import Timer from '@gibme/timer';
-import AbortController, { AbortSignal } from 'abort-controller';
+import StreamController from './stream_controller';
 
-export { ConnectConfig, AbortController, AbortSignal };
+export { ConnectConfig, StreamController };
 
 export default class SSH extends EventEmitter {
     private readonly client = new Client();
@@ -132,100 +131,18 @@ export default class SSH extends EventEmitter {
      *
      * @param command
      * @param options
-     * @returns method to cancel the stream
      */
     public async stream (
         command: string,
-        options: Partial<{
-            separator: string;
-            encoding: BufferEncoding;
-            loopInterval: number
-            signal: AbortSignal
-        }> = { separator: '\r\n', encoding: 'utf8', loopInterval: 10 }
-    ): Promise<void> {
-        options.separator ??= '\r\n';
-        options.encoding ??= 'utf8';
-        options.loopInterval ??= 10;
-
-        if (options.separator.length === 0) {
-            throw new Error('separator cannot be empty');
-        }
-
-        const sleep = async (timeout: number) =>
-            new Promise(resolve => setTimeout(resolve, timeout));
-
+        options: Partial<StreamController.Options> = {}
+    ): Promise<StreamController> {
         return new Promise((resolve, reject) => {
-            const reader = new Reader();
-
-            const timer = new Timer(options.loopInterval || 10, true);
-
-            timer.on('tick', () => {
-                timer.stop();
-
-                let delimiter = reader.unreadBuffer.indexOf(
-                    options.separator || '\r\n', 0, options.encoding);
-
-                while (delimiter >= 0 && !timer.destroyed) {
-                    this.emit('stream', reader.bytes(delimiter));
-
-                    reader.skip(options.separator?.length);
-
-                    delimiter = reader.unreadBuffer.indexOf(
-                        options.separator || '\r\n', 0, options.encoding);
-                }
-
-                timer.start();
-            });
-
             this.client.exec(command, (error, stream) => {
                 if (error) {
-                    timer.destroy();
-
                     return reject(error);
                 }
 
-                const cleanup = () => {
-                    timer.destroy();
-
-                    stream.destroy();
-                };
-
-                stream.on('close', async () => {
-                    /**
-                     * When the stream closes, and we haven't been cancelled
-                     * then we need to wait a moment for the reader to clear
-                     */
-                    while (reader.unreadBytes > 0 && !timer.destroyed) {
-                        await sleep(options.loopInterval || 10);
-                    }
-
-                    /**
-                     * If we haven't been cancelled, then our stream completed
-                     */
-                    if (!timer.destroyed) {
-                        this.emit('stream_complete');
-                    }
-
-                    cleanup();
-                });
-
-                stream.pipe(reader);
-
-                if (options.signal) {
-                    options.signal.addEventListener('abort', async () => {
-                        /**
-                         * If we call abort AFTER we've already completed,
-                         * then we don't want to accidentally say we were cancelled
-                         */
-                        if (!timer.destroyed) {
-                            this.emit('stream_cancelled');
-                        }
-
-                        cleanup();
-                    });
-                }
-
-                return resolve();
+                return resolve(new StreamController(stream, options));
             });
         });
     }

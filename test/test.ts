@@ -1,4 +1,4 @@
-// Copyright (c) 2024, Brandon Lehmann <brandonlehmann@gmail.com>
+// Copyright (c) 2024-2025, Brandon Lehmann <brandonlehmann@gmail.com>
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -19,7 +19,7 @@
 // SOFTWARE.
 
 import { describe, it } from 'mocha';
-import SSH, { AbortController } from '../src/index';
+import SSH from '../src/index';
 import { config } from 'dotenv';
 import assert from 'assert';
 
@@ -51,30 +51,34 @@ describe('Unit Tests', async () => {
     it('Stream()', async function () {
         if (!client.connected) return this.skip();
 
-        const controller = new AbortController();
-
-        let ok = false;
-
-        client.once('stream', data => {
-            assert.ok(data.length !== 0);
-
-            ok = true;
-
-            controller.abort();
-        });
-
-        await client.stream('/ping 1.1.1.1', { signal: controller.signal });
+        const stream = await client.stream('/ping 1.1.1.1');
 
         return new Promise((resolve, reject) => {
-            controller.signal.addEventListener('abort', () => {
-                return resolve();
-            });
-
-            setTimeout(() => {
-                if (ok) return resolve();
+            const timeout = setTimeout(() => {
+                stream.abort();
 
                 return reject(new Error('Could not stream properly'));
             }, 2000);
+
+            stream.on('data', data => {
+                if (data.length > 0) {
+                    console.log(data.toString());
+
+                    stream.abort();
+
+                    clearTimeout(timeout);
+
+                    return resolve();
+                }
+            });
+
+            stream.on('completed', () => {
+                console.log('stream completed');
+            });
+
+            stream.on('cancelled', () => {
+                console.log('stream cancelled');
+            });
         });
     });
 
