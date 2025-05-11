@@ -46,7 +46,7 @@ export class StreamController extends EventEmitter {
         this.timer = new Timer(options.loopInterval || 10, true);
 
         this.timer.on('tick', () => {
-            this.timer.stop();
+            this.timer.paused = true;
 
             let delimiter = this.delimiter;
 
@@ -58,7 +58,7 @@ export class StreamController extends EventEmitter {
                 delimiter = this.delimiter;
             }
 
-            this.timer.start();
+            this.timer.paused = false;
         });
 
         this.stream.on('close', async () => {
