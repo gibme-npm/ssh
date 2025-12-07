@@ -23,7 +23,7 @@ import SSH from '../src/index';
 import { config } from 'dotenv';
 import assert from 'assert';
 
-config();
+config({ quiet: true });
 
 describe('Unit Tests', async () => {
     const client = new SSH({
