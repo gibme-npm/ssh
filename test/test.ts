@@ -18,7 +18,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-import { describe, it } from 'mocha';
+import { describe, it } from 'node:test';
 import SSH from '../src/index';
 import { config } from 'dotenv';
 import assert from 'assert';
@@ -32,28 +32,28 @@ describe('Unit Tests', async () => {
         password: process.env.SSH_PASSWORD
     });
 
-    it('Connect()', async function () {
+    it('Connect()', { skip: false }, async (t) => {
         try {
             await client.connect();
         } catch {
-            this.skip();
+            t.skip('SSH connection not available');
         }
     });
 
-    it('Exec()', async function () {
-        if (!client.connected) return this.skip();
+    it('Exec()', { skip: false }, async (t) => {
+        if (!client.connected) return t.skip('Not connected');
 
         const result = await client.exec('/ip address print terse without-paging');
 
         assert.ok(result.length !== 0);
     });
 
-    it('Stream()', async function () {
-        if (!client.connected) return this.skip();
+    it('Stream()', { skip: false }, async (t) => {
+        if (!client.connected) return t.skip('Not connected');
 
         const stream = await client.stream('/ping 1.1.1.1');
 
-        return new Promise((resolve, reject) => {
+        return new Promise<void>((resolve, reject) => {
             const timeout = setTimeout(() => {
                 stream.abort();
 
@@ -82,7 +82,7 @@ describe('Unit Tests', async () => {
         });
     });
 
-    it('Destroy()', async function () {
+    it('Destroy()', { skip: false }, async () => {
         await client.destroy();
     });
 });
